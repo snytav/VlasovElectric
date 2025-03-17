@@ -1,0 +1,6 @@
+0. import rho and E from Matlab. 
+    b. compare solutions
+    c. draw    plot
+ 
+1. convergence for 10,20,40
+   draw plot

@@ -7,25 +7,37 @@ import os
 
 
 class PDEnet(nn.Module):
-    def copy_all_txt_files(self,time):
-        str = '{:10.3e}'.format(0.0)
+    def make_fn(self,base,time):
+        ts = '{:10.3e}'.format(time)
+        fn = base+'_'+ts+'.txt'
+    def copy_all_txt_files(self,time,dir):
+        ts = '{:10.3e}'.format(time)
+        names = ['E','f','rho','x']
+        fnames  = [self.make_fn(n) for n in names]
+
+        for fn in fnames:
+            shutil.copy(dir+'/'+fn,fn)
+            qq = 0
 
 
-        # dir_list = os.listdir(path)
+        #dir_list = os.listdir(dir)
+        qq = 0
+    def read_physical_variables(self,E_fn,f_fn):
+        self.E = np.loadtxt(E_fn)
+        self.f = np.loadtxt(f_fn)
+        N = self.E.shape[0]
+
+        # for f - second Matlab index first - check !!!
+        self.f = self.f.reshape(N,N)
 
     def __init__(self,time):
         super(PDEnet,self).__init__()
-        self.copy_all_txt_files(time)
+        self.copy_all_txt_files(time,'../Sonnendrucker')
+        self.time = time
+        E_fn = self.make_fn('E',self.time)
+        f_fn = self.make_fn('f', self.time)
+        self.read_physical_variables(E_fn,f_fn)
 
-
-        W00 = np.loadtxt('W00.txt')
-        self.N = N
-        W01 = np.loadtxt('W01.txt')
-        W = torch.Tensor([W00, W01])
-        W1 = np.loadtxt('W1.txt')
-        fc1 = nn.Linear(2,self.N)
-        fc1.weight = torch.nn.Parameter(W.T)
-        fc1.bias = torch.nn.Parameter(torch.zeros_like(fc1.bias))
 
         x = torch.ones((2))
         x = x.reshape(1,2)
