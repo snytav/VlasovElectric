@@ -59,9 +59,9 @@ yt = pde(xt)
 
 def loss_function1(pde, x, y):
 
-    loss_basic = np.loadtxt('penta_loss_arr.txt')
-    dpsy_dx = loss_basic[:, 2]
-    dpsy_dy = loss_basic[:, 3]
+    #loss_basic = np.loadtxt('penta_loss_arr.txt')
+    # dpsy_dx = loss_basic[:, 2]
+    # dpsy_dy = loss_basic[:, 3]
     loss_sum = 0.
 
     loss_list = []

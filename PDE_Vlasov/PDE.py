@@ -33,6 +33,10 @@ class PDEnet(nn.Module):
         dx = self.x[1] - self.x[0]
         dv = self.v[1] - self.v[0]
         self.dx = torch.tensor([dx,dv])
+        self.x = torch.from_numpy(self.x)
+        self.v = torch.from_numpy(self.v)
+        self.Lx = torch.max(self.x)
+        self.Lv = torch.max(self.v)
 
         # for f - second Matlab index first - check !!!
         self.f = self.f.reshape(N,N)
@@ -81,8 +85,32 @@ class PDEnet(nn.Module):
             y = self.fc2(y.reshape(1, self.N))
         return y
 
+    # def A(x):
+    #     return x[1] * np.sin(np.pi * x[0])
 
+    def A(self,x):
+        ic = torch.floor(torch.div(x, self.dx)).int()
+        if lc[0] == self.N or lc[0] == 0:
+           return self.f[lc[0]][lc[1]]
+        else:
+            return 0.0
+
+        if lc[1] == self.N or lc[1] == 0:
+           return self.f[lc[0]][lc[1]]
+        else:
+            return 0.0
+
+        return ()
+
+    def psy_trial(self,x):
+        return self.A(x) + x[0] * (self.Lx - x[0]) * x[1] * (self.Lv - x[1]) * self.forward(x)
+
+    def f(x):
+        return 0.
 
 pde = PDEnet(0.0)
-y = pde(0.1*torch.ones(2))
+from PDE_loss import loss_function1
+lf = loss_function1(pde.x,pde.v,pde.psy_trial,self.f)
+
+y = pde(torch.tensor([5*1.39,8*1.39]))
 qq = 0
