@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import shutil
 import os
+import glob
 
 
 
@@ -23,6 +24,19 @@ class PDEnet(nn.Module):
 
         #dir_list = os.listdir(dir)
         qq = 0
+
+    def get_time_moments(self,dir):
+        cur_dir  = os.getcwd()
+        os.chdir(dir)
+        e_files = glob.glob('E*.txt')
+        times = [n.split('_')[1].split('.txt')[0] for n in e_files]
+        f_times = [float(s) for s in times]
+        f_times = torch.tensor(f_times)
+        sorted, indices = torch.sort(x)
+        os.chdir(cur_dir)
+        return sorted
+
+
     def read_physical_variables(self,E_fn,f_fn,x_fn,v_fn):
         self.E = np.loadtxt(E_fn)
         self.f = np.loadtxt(f_fn)
@@ -44,6 +58,7 @@ class PDEnet(nn.Module):
 
     def __init__(self,time):
         super(PDEnet,self).__init__()
+        self.times = self.get_time_moments('../Sonnendrucker')
         self.copy_all_txt_files(time,'../Sonnendrucker')
         self.time = time
         E_fn = self.make_fn('E',self.time)
@@ -110,7 +125,7 @@ class PDEnet(nn.Module):
 
 pde = PDEnet(0.0)
 from PDE_loss import loss_function1
-lf = loss_function1(pde.x,pde.v,pde.psy_trial,self.f)
+lf = loss_function1(pde.x,pde.v,pde.psy_trial,pde.f)
 
 y = pde(torch.tensor([5*1.39,8*1.39]))
 qq = 0
