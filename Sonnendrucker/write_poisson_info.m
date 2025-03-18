@@ -11,5 +11,8 @@ dlmwrite(fn,E,'delimiter','\n','precision',15);
 fn= sprintf("f_%10.3e.txt",time);
 dlmwrite(fn,f,'delimiter','\n','precision',15);
 
+fn= sprintf("v_%10.3e.txt",time);
+dlmwrite(fn,v,'delimiter','\n','precision',15);
+
 
 end
