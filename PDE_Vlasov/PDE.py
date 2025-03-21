@@ -12,13 +12,14 @@ class PDEnet(nn.Module):
         ts = '{:10.3e}'.format(time)
         fn = base+'_'+ts+'.txt'
         return fn
-    def copy_all_txt_files(self,time,dir):
-        ts = '{:10.3e}'.format(time)
-        names = ['E','f','rho','x','v']
-        fnames  = [self.make_fn(n,time) for n in names]
+    def copy_all_txt_files(self,times,dir):
+        for time in times:
+            ts = '{:10.3e}'.format(time)
+            names = ['E','f','rho','x','v']
+            fnames  = [self.make_fn(n,time) for n in names]
 
-        for fn in fnames:
-            shutil.copy(dir+'/'+fn,fn)
+            for fn in fnames:
+                shutil.copy(dir+'/'+fn,fn)
             qq = 0
 
 
@@ -32,43 +33,69 @@ class PDEnet(nn.Module):
         times = [n.split('_')[1].split('.txt')[0] for n in e_files]
         f_times = [float(s) for s in times]
         f_times = torch.tensor(f_times)
-        sorted, indices = torch.sort(x)
+        sorted, indices = torch.sort(f_times)
         os.chdir(cur_dir)
         return sorted
 
 
     def read_physical_variables(self,E_fn,f_fn,x_fn,v_fn):
-        self.E = np.loadtxt(E_fn)
-        self.f = np.loadtxt(f_fn)
-        N = self.E.shape[0]
+        E = np.loadtxt(E_fn)
+        f = np.loadtxt(f_fn)
+        N = E.shape[0]
         self.N = N
-        self.v = np.loadtxt(v_fn)
-        self.x = np.loadtxt(x_fn)
-        dx = self.x[1] - self.x[0]
-        dv = self.v[1] - self.v[0]
+        f = f.reshape(N,N)
+        v = np.loadtxt(v_fn)
+        x = np.loadtxt(x_fn)
+        dx = x[1] - x[0]
+        dv = v[1] - v[0]
         self.dx = torch.tensor([dx,dv])
-        self.x = torch.from_numpy(self.x)
-        self.v = torch.from_numpy(self.v)
-        self.Lx = torch.max(self.x)
-        self.Lv = torch.max(self.v)
+        x = torch.from_numpy(x)
+        v = torch.from_numpy(v)
+        f = torch.from_numpy(f)
+        E = torch.from_numpy(E)
+
 
         # for f - second Matlab index first - check !!!
-        self.f = self.f.reshape(N,N)
+        #f = f.reshape(N,N)
         qq = 0
+        return E,f,x,v
+
+    def fill_all_moments_f_v_E(self,times):
+        nt = times.shape[0]
+        self.f_sonn = torch.zeros(nt,self.N,self.N)
+        self.v_sonn = torch.zeros(nt, self.N)
+        self.E_sonn = torch.zeros(nt, self.N)
+
+        for i,t in enumerate(times):
+            E_fn = self.make_fn('E', t)
+            f_fn = self.make_fn('f', t)
+            x_fn = self.make_fn('x',t)
+            v_fn = self.make_fn('v', t)
+            E,f,x,v = self.read_physical_variables(E_fn, f_fn, x_fn, v_fn)
+            self.f_sonn[i,:,:] = f
+            self.E_sonn[i,:]   = E
+            self.v_sonn[i,:]   = v
+
 
     def __init__(self,time):
         super(PDEnet,self).__init__()
         self.times = self.get_time_moments('../Sonnendrucker')
-        self.copy_all_txt_files(time,'../Sonnendrucker')
-        self.time = time
+        self.copy_all_txt_files(self.times,'../Sonnendrucker')
+        self.time = 0.0
+        time = 0.0
         E_fn = self.make_fn('E',self.time)
         f_fn = self.make_fn('f', self.time)
         x_fn = self.make_fn('x',self.time)
         v_fn = self.make_fn('v', self.time)
-        self.read_physical_variables(E_fn,f_fn,x_fn,v_fn)
+        self.E,self.f,self.x,self.v = self.read_physical_variables(E_fn,f_fn,x_fn,v_fn)
+        self.Lx = torch.max(self.x)
+        self.Lv = torch.max(self.v)
+        self.N  = self.v.shape[0]
         fc1 = nn.Linear(2, self.N)
         fc2 = nn.Linear(self.N, 1)
         self.simplified = True
+
+        self.fill_all_moments_f_v_E(self.times)
 
 
 
@@ -91,7 +118,7 @@ class PDEnet(nn.Module):
 
         if self.simplified:
             ic = torch.floor(torch.div(x,self.dx)).int()
-            y = self.f[ic[0]][ic[1]]
+            y = self.f_sonn[ic[0]][ic[1]]
             qq = 0
         else:
             x = x.reshape(1, 2)
@@ -124,8 +151,8 @@ class PDEnet(nn.Module):
         return 0.
 
 pde = PDEnet(0.0)
-from PDE_loss import loss_function1
-lf = loss_function1(pde.x,pde.v,pde.psy_trial,pde.f)
+from loss import loss_function1
+lf = loss_function1(pde.times,pde.x,pde.v,pde,pde.forward,pde.f_sonn,pde.v_sonn,pde.E_sonn)
 
 y = pde(torch.tensor([5*1.39,8*1.39]))
 qq = 0
