@@ -65,6 +65,7 @@ while (time<t_end)
     %% Electrical field strength from exact solution of Poisson's equation 
     %% with periodic border conditions for electric potential
     E = cumtrapz(x, trapz(v, f, 2)) - x';   E = E - mean(mean(E));
+    E = zeros(size(E));
     write_poisson_info(x,v,f,E,time); 
     %% V-coordinate shift at full time step
     Vsh = V - repmat(E, 1, M)*dt;

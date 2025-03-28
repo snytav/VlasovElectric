@@ -46,9 +46,10 @@ class PDEnet(nn.Module):
         f = f.reshape(N,N)
         v = np.loadtxt(v_fn)
         x = np.loadtxt(x_fn)
+        dt = self.times[1] - self.times[0]
         dx = x[1] - x[0]
         dv = v[1] - v[0]
-        self.dx = torch.tensor([dx,dv])
+        self.dx = torch.tensor([dt,dx,dv])
         x = torch.from_numpy(x)
         v = torch.from_numpy(v)
         f = torch.from_numpy(f)
@@ -81,18 +82,34 @@ class PDEnet(nn.Module):
         super(PDEnet,self).__init__()
         self.times = self.get_time_moments('../Sonnendrucker')
         self.copy_all_txt_files(self.times,'../Sonnendrucker')
-        self.time = 0.0
-        time = 0.0
-        E_fn = self.make_fn('E',self.time)
-        f_fn = self.make_fn('f', self.time)
-        x_fn = self.make_fn('x',self.time)
-        v_fn = self.make_fn('v', self.time)
-        self.E,self.f,self.x,self.v = self.read_physical_variables(E_fn,f_fn,x_fn,v_fn)
+        # self.time = 0.0
+        self.E = []
+        # self.x = []
+        # self.v = []
+        self.f = []
+
+        for time in self.times:
+            E_fn = self.make_fn('E',time)
+            f_fn = self.make_fn('f',time)
+            x_fn = self.make_fn('x',time)
+            v_fn = self.make_fn('v',time)
+
+            E,f,x,v = self.read_physical_variables(E_fn,f_fn,x_fn,v_fn)
+            self.E.append(E)
+            self.f.append(f)
+            self.x = x
+            self.v = v
+
+        # self.f = torch.tensor(self.f)
+        # self.E = torch.tensor(self.E)
+
+
         self.Lx = torch.max(self.x)
         self.Lv = torch.max(self.v)
         self.N  = self.v.shape[0]
         fc1 = nn.Linear(2, self.N)
         fc2 = nn.Linear(self.N, 1)
+        self.x0 = torch.tensor([torch.min(self.times),torch.min(self.x),torch.min(self.v)])
         self.simplified = True
 
         self.fill_all_moments_f_v_E(self.times)
@@ -115,10 +132,11 @@ class PDEnet(nn.Module):
         qq = 0
 
     def forward(self,x):
+        qq = 0
 
         if self.simplified:
-            ic = torch.floor(torch.div(x,self.dx)).int()
-            y = self.f_sonn[ic[0]][ic[1]]
+            ic = torch.floor(torch.div(x-self.x0,self.dx)).int()
+            y = self.f_sonn[ic[0]][ic[1]][ic[2]]
             qq = 0
         else:
             x = x.reshape(1, 2)
